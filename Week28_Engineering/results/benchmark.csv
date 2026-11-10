@@ -1,0 +1,6 @@
+config,queries,answerable,recall_at_5,chunk_recall_at_5,mrr_at_5,complete_rate,candidate_recall,answer_evidence_rate,abstained_unanswerable,duplicate_fraction,context_tokens,p50_ms,p95_ms,embedding_calls,lexical_calls,scored_pairs
+R0,24,22,0.8636,1.0,0.6364,0.8636,0.8636,0.7727,2,0.0,156.1667,4.908,5.876,1,0,0
+R1,24,22,1.0,1.0,0.8712,1,1.0,1,2,0.0,96.2083,3.849,5.107,1,0,0
+R2,24,22,1.0,1.0,0.9545,1,1.0,1,2,0.0,100.875,4.778,6.621,1,1,0
+R3,24,22,1.0,1.0,1.0,1,1.0,1,2,0.0,102.625,5.336,6.567,1,1,12
+R4,24,22,1.0,1.0,1.0,1,1.0,1,2,0.0,102.625,6.175,10.32,1.167,1.167,12

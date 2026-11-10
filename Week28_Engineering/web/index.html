@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 28 Manual Search</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font: 16px/1.55 system-ui, sans-serif; color: #18273a; background: #f3f6fa; margin: 0; }
+  main { width: min(960px, 94%); margin: 2.4rem auto; }
+  h1 { margin-bottom: .25rem; }
+  h2 { font-size: 1.2rem; }
+  p { margin-top: .4rem; }
+  section, form { background: white; border: 1px solid #d6dfeb; padding: 1rem 1.2rem; margin: 1rem 0; border-radius: 8px; }
+  label { display: block; font-weight: 600; }
+  input, select, button { font: inherit; padding: .55rem .7rem; border: 1px solid #a7b7ca; border-radius: 5px; }
+  #query { width: 100%; }
+  .row { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; margin-top: .75rem; }
+  button { color: white; background: #2354a4; cursor: pointer; }
+  button:disabled { opacity: .65; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+  .source { font-size: .89rem; color: #455a74; }
+  article + article { border-top: 1px solid #d6dfeb; padding-top: .65rem; }
+  .table { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+  th, td { text-align: left; padding: .45rem; border-bottom: 1px solid #d6dfeb; }
+  tr.chosen { background: #e8f2ff; }
+  details { margin: .6rem 0; }
+  summary { cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Week 28 Manual Search</h1>
+  <p>Ask a support question, then check the manual passages and how the search ranked them.</p>
+  <form id="search">
+    <label for="query">Question</label>
+    <input id="query" required maxlength="1000" value="What should I do for ERR-4021 on AX-18?">
+    <div class="row">
+      <div><label for="stage">Retrieval stage</label><select id="stage">
+        <option value="R0">R0 · Dense baseline</option><option value="R1">R1 · Improved chunks</option>
+        <option value="R2">R2 · Hybrid</option><option value="R3">R3 · Reranked hybrid</option>
+        <option value="R4">R4 · Guarded expansion</option>
+      </select></div>
+      <div><label for="chunk">Chunk strategy</label><select id="chunk">
+        <option value="">Use stage setting</option><option value="fixed32">32 words</option>
+        <option value="overlap32">32 words with overlap</option><option value="fixed64">64 words</option>
+        <option value="sections">Markdown sections</option>
+      </select></div>
+      <label id="generator-option" hidden><input id="generate" type="checkbox"> Ask the local model to summarize</label>
+      <button type="submit">Search</button>
+    </div>
+  </form>
+  <p id="status" role="status" aria-live="polite"></p>
+  <section id="result" hidden></section>
+  <section id="trace" hidden></section>
+</main>
+<script>
+const get = id => document.getElementById(id);
+function add(parent, tag, content, className) {
+  const el = document.createElement(tag);
+  if (content !== undefined) el.textContent = content;
+  if (className) el.className = className;
+  parent.append(el);
+  return el;
+}
+fetch('/api/config').then(r => r.json()).then(config => {
+  get('stage').value = config.stage;
+  get('generator-option').hidden = !config.generator;
+}).catch(() => { get('status').textContent = 'Could not read the server settings.'; });
+get('search').addEventListener('submit', async event => {
+  event.preventDefault();
+  const status = get('status');
+  const button = event.target.querySelector('button');
+  const result = get('result');
+  const trace = get('trace');
+  button.disabled = true;
+  status.textContent = 'Searching the manuals…';
+  result.hidden = trace.hidden = true;
+  result.replaceChildren();
+  trace.replaceChildren();
+  try {
+    const response = await fetch('/api/search', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({query: get('query').value, stage: get('stage').value,
+                            chunk: get('chunk').value || null, generate: get('generate').checked})
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Search failed.');
+    status.textContent = data.stage + ' · ' + data.chunk + ' · ' + data.latency_ms.toFixed(1) + ' ms retrieval';
+    add(result, 'h2', 'Answer from the manuals');
+    if (data.answer.local_summary) add(result, 'p', data.answer.local_summary);
+    if (data.answer.summary_error) add(result, 'p', data.answer.summary_error);
+    if (!data.answer.passages.length) add(result, 'p', data.answer.answer);
+    data.answer.passages.forEach((passage, i) => {
+      const article = add(result, 'article');
+      add(article, 'pre', passage.text);
+      add(article, 'p', '[' + (i + 1) + '] ' + passage.citation, 'source');
+    });
+    add(trace, 'h2', 'Retrieval trace');
+    add(trace, 'p', 'Expansion: ' + data.expansion_reason + ' · ' + data.expanded_query, 'source');
+    const table = add(add(trace, 'div', undefined, 'table'), 'table');
+    const header = add(add(table, 'thead'), 'tr');
+    ['Source / section', 'Sparse ranks', 'Dense ranks', 'Fused rank', 'Rerank score', 'Final rank']
+      .forEach(label => add(header, 'th', label));
+    const tbody = add(table, 'tbody');
+    const ranks = values => values.map(rank => rank ?? '–').join(' / ') || '–';
+    for (const hit of data.trace) {
+      const row = add(tbody, 'tr', undefined, hit.selected ? 'chosen' : '');
+      const details = add(add(row, 'td'), 'details');
+      add(details, 'summary', hit.chunk.title + ' · ' + (hit.chunk.heading || 'Text'));
+      add(details, 'pre', hit.chunk.text);
+      add(details, 'p', hit.chunk.id, 'source');
+      [ranks(hit.sparse_ranks), ranks(hit.dense_ranks), hit.fused_rank,
+       hit.rerank_score?.toFixed(3) ?? '–', hit.final_rank ?? '–'].forEach(value => add(row, 'td', value));
+    }
+    result.hidden = trace.hidden = false;
+  } catch (error) {
+    status.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

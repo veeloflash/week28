@@ -1,0 +1,5 @@
+config,chunk_count,indexed_words,build_ms,method,size,overlap
+fixed32,20,562,164.964,fixed,32,0
+overlap32,24,722,185.947,fixed,32,8
+fixed64,12,562,138.097,fixed,64,0
+sections,29,562,228.394,sections,55,0

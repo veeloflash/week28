@@ -1,0 +1,6 @@
+{
+  "stage": "R1",
+  "chunk": "sections",
+  "r1_chunk": "sections",
+  "embedding": "minilm"
+}

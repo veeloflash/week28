@@ -1,0 +1,6 @@
+[
+  {"id":"ax17","path":"manuals/ax17.md","title":"AX-17 User Manual","version":"1.0","trusted":true},
+  {"id":"ax18","path":"manuals/ax18.md","title":"AX-18 Service Manual","version":"1.0","trusted":true},
+  {"id":"policy","path":"manuals/policy.md","title":"Service and Returns","version":"1.0","trusted":true},
+  {"id":"forum","path":"manuals/forum.md","title":"Unverified AX-17 Forum Post","version":"1.0","trusted":false}
+]
